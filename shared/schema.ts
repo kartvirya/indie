@@ -7,6 +7,9 @@ export const gameFilters = z.object({
   minPrice: z.number().optional(),
   maxPrice: z.number().optional(),
   minRating: z.number().optional(),
+  minReviews: z.number().optional(),
+  maxReviews: z.number().optional(),
+  independentOnly: z.boolean().optional(),
   page: z.number().optional(),
   pageSize: z.number().optional(),
 });
@@ -18,8 +21,10 @@ export interface Game {
   name: string;
   background_image: string;
   rating: number;
+  ratings_count: number;
   released: string;
   genres: Array<{id: number; name: string}>;
   description: string;
   price?: number;
+  developers?: Array<{id: number; name: string}>;
 }

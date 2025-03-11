@@ -6,6 +6,29 @@ import { gameFilters } from "@shared/schema";
 const RAWG_API_KEY = process.env.RAWG_API_KEY || "";
 const RAWG_BASE_URL = "https://api.rawg.io/api";
 
+// List of major publishers/developers to exclude
+const MAJOR_COMPANIES = [
+  "Electronic Arts",
+  "Ubisoft",
+  "Activision",
+  "Blizzard",
+  "Take-Two Interactive",
+  "2K Games",
+  "Rockstar Games",
+  "Square Enix",
+  "Sony Interactive Entertainment",
+  "Microsoft Game Studios",
+  "Nintendo",
+  "Bandai Namco",
+  "Capcom",
+  "SEGA",
+  "THQ Nordic",
+  "Warner Bros. Interactive",
+  "505 Games",
+  "Focus Home Interactive",
+  "Devolver Digital",
+];
+
 export async function registerRoutes(app: Express) {
   app.get("/api/games/random", async (req, res) => {
     try {
@@ -26,6 +49,10 @@ export async function registerRoutes(app: Express) {
 
       if (filters.minRating) {
         queryParams.append("metacritic", `${filters.minRating},100`);
+      }
+
+      if (filters.minReviews) {
+        queryParams.append("ratings_count", `${filters.minReviews},5000`);
       }
 
       console.log("Fetching games with params:", queryParams.toString());
@@ -70,9 +97,43 @@ export async function registerRoutes(app: Express) {
         data.results = fallbackData.results;
       }
 
-      // Randomly select a game from the results
-      const randomIndex = Math.floor(Math.random() * data.results.length);
-      const selectedGame = data.results[randomIndex];
+      // Filter games by checking their developers
+      let filteredGames = data.results;
+
+      if (filters.independentOnly) {
+        filteredGames = await Promise.all(
+          data.results.map(async (game: any) => {
+            const gameDetailsResponse = await fetch(
+              `${RAWG_BASE_URL}/games/${game.id}?key=${RAWG_API_KEY}`
+            );
+
+            if (!gameDetailsResponse.ok) return null;
+
+            const gameDetails = await gameDetailsResponse.json();
+            const developers = gameDetails.developers || [];
+
+            // Check if any developer is in the major companies list
+            const isIndependent = !developers.some((dev: any) => 
+              MAJOR_COMPANIES.includes(dev.name)
+            );
+
+            return isIndependent ? game : null;
+          })
+        );
+
+        // Remove null values and games without developers
+        filteredGames = filteredGames.filter(Boolean);
+      }
+
+      if (!filteredGames.length) {
+        return res.status(404).json({ 
+          message: "No indie games found matching your criteria. Try adjusting your filters." 
+        });
+      }
+
+      // Randomly select a game from the filtered results
+      const randomIndex = Math.floor(Math.random() * filteredGames.length);
+      const selectedGame = filteredGames[randomIndex];
 
       res.json(selectedGame);
     } catch (error) {

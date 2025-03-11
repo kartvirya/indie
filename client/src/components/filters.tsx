@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -10,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
-import { Gamepad2 } from "lucide-react";
+import { Gamepad2, Star, Users } from "lucide-react";
 import type { Genre, GameFilters } from "@/lib/api-types";
 
 interface FiltersProps {
@@ -20,6 +21,8 @@ interface FiltersProps {
 export default function Filters({ onFilterChange }: FiltersProps) {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [rating, setRating] = useState([0]);
+  const [reviews, setReviews] = useState([0]);
+  const [independentOnly, setIndependentOnly] = useState(true);
 
   const { data: genres, isLoading } = useQuery<Genre[]>({
     queryKey: ["/api/genres"],
@@ -37,6 +40,8 @@ export default function Filters({ onFilterChange }: FiltersProps) {
     onFilterChange({
       genres: selectedGenres,
       minRating: rating[0],
+      minReviews: reviews[0],
+      independentOnly: independentOnly,
     });
   };
 
@@ -96,7 +101,9 @@ export default function Filters({ onFilterChange }: FiltersProps) {
         </div>
 
         <div className="space-y-3">
-          <h3 className="font-medium">Minimum Rating</h3>
+          <h3 className="font-medium flex items-center gap-2">
+            <Star className="h-4 w-4" /> Minimum Rating
+          </h3>
           <Slider
             value={rating}
             onValueChange={setRating}
@@ -107,6 +114,36 @@ export default function Filters({ onFilterChange }: FiltersProps) {
           <div className="text-sm text-muted-foreground">
             {rating[0]}% or higher
           </div>
+        </div>
+
+        <div className="space-y-3">
+          <h3 className="font-medium flex items-center gap-2">
+            <Users className="h-4 w-4" /> Minimum Reviews
+          </h3>
+          <Slider
+            value={reviews}
+            onValueChange={setReviews}
+            max={1000}
+            step={100}
+            className="w-full"
+          />
+          <div className="text-sm text-muted-foreground">
+            {reviews[0]}+ reviews
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="independent"
+            checked={independentOnly}
+            onCheckedChange={(checked) => setIndependentOnly(checked as boolean)}
+          />
+          <label
+            htmlFor="independent"
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          >
+            Show only independent developers
+          </label>
         </div>
 
         <Button
