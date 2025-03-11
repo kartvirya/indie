@@ -11,15 +11,15 @@ export async function registerRoutes(app: Express) {
     try {
       const filters = gameFilters.parse(req.query);
 
-      // Build query parameters
+      // Simplified query parameters for better results
       const queryParams = new URLSearchParams({
         key: RAWG_API_KEY,
-        page_size: "40",
-        tags: "indie",
-        ordering: "-rating", // Get highly rated games first
-        metacritic: "70,100", // Only games with good ratings
+        page_size: "20",
+        dates: "2015-01-01,2024-12-31", // Recent games
+        platforms: "4", // PC games (Steam platform)
       });
 
+      // Add optional filters
       if (filters.genres?.length) {
         queryParams.append("genres", filters.genres.join(","));
       }
@@ -27,6 +27,8 @@ export async function registerRoutes(app: Express) {
       if (filters.minRating) {
         queryParams.append("metacritic", `${filters.minRating},100`);
       }
+
+      console.log("Fetching games with params:", queryParams.toString());
 
       const response = await fetch(
         `${RAWG_BASE_URL}/games?${queryParams.toString()}`
@@ -39,11 +41,33 @@ export async function registerRoutes(app: Express) {
       }
 
       const data = await response.json();
+      console.log(`Found ${data.results?.length || 0} games`);
 
       if (!data.results?.length) {
-        return res.status(404).json({ 
-          message: "No games found matching your criteria. Try adjusting your filters." 
+        // Try again without filters if no games found
+        const fallbackParams = new URLSearchParams({
+          key: RAWG_API_KEY,
+          page_size: "20",
+          dates: "2015-01-01,2024-12-31",
+          platforms: "4",
         });
+
+        const fallbackResponse = await fetch(
+          `${RAWG_BASE_URL}/games?${fallbackParams.toString()}`
+        );
+
+        if (!fallbackResponse.ok) {
+          throw new Error("Failed to fetch games, even with fallback options");
+        }
+
+        const fallbackData = await fallbackResponse.json();
+        if (!fallbackData.results?.length) {
+          return res.status(404).json({ 
+            message: "No games found. Please try again." 
+          });
+        }
+
+        data.results = fallbackData.results;
       }
 
       // Randomly select a game from the results
@@ -54,7 +78,7 @@ export async function registerRoutes(app: Express) {
     } catch (error) {
       console.error("Random game fetch error:", error);
       res.status(500).json({ 
-        message: "Failed to fetch random game. Please check your API key and try again." 
+        message: "Failed to fetch random game. Please try again." 
       });
     }
   });
