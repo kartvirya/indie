@@ -101,23 +101,43 @@ export async function registerRoutes(app: Express) {
       let filteredGames = data.results;
 
       if (filters.independentOnly) {
+        console.log("Independent only filter is ON");
+        // Use a smaller batch of games for detailed processing
+        const gamesToProcess = data.results.slice(0, 10);
+        console.log(`Processing ${gamesToProcess.length} games for indie filtering`);
+        
         const detailedGames = await Promise.all(
-          data.results.map(async (game: any) => {
+          gamesToProcess.map(async (game: any) => {
             try {
+              // Add a small delay to avoid rate limiting
+              await new Promise(resolve => setTimeout(resolve, 100));
+              
               const gameDetailsResponse = await fetch(
                 `${RAWG_BASE_URL}/games/${game.id}?key=${RAWG_API_KEY}`
               );
 
-              if (!gameDetailsResponse.ok) return null;
+              if (!gameDetailsResponse.ok) {
+                console.error(`Failed to fetch details for ${game.name}: ${gameDetailsResponse.status}`);
+                return null;
+              }
 
               const gameDetails = await gameDetailsResponse.json();
               const developers = gameDetails.developers || [];
               
-              console.log(`Game ${game.name} developers:`, developers.map((dev: any) => dev.name));
+              const devNames = developers.map((dev: any) => dev.name);
+              console.log(`Game "${game.name}" developers:`, devNames.join(", ") || "None");
               
-              // Check if any developer is in the major companies list
+              // A game is independent if it has developers and none are in the major companies list
               const isIndependent = developers.length > 0 && 
                 !developers.some((dev: any) => MAJOR_COMPANIES.includes(dev.name));
+              
+              if (isIndependent) {
+                console.log(`✅ "${game.name}" is INDIE`);
+              } else if (developers.length > 0) {
+                console.log(`❌ "${game.name}" is NOT indie`);
+              } else {
+                console.log(`⚠️ "${game.name}" has no developer info`);
+              }
               
               return {
                 game,
@@ -138,7 +158,32 @@ export async function registerRoutes(app: Express) {
         const indieGames = validGames.filter(item => item.isIndependent && item.hasDevelopers);
         console.log(`Found ${indieGames.length} indie games after filtering`);
         
-        filteredGames = indieGames.map(item => item.game);
+        if (indieGames.length > 0) {
+          filteredGames = indieGames.map(item => item.game);
+          console.log(`Returning ${filteredGames.length} indie games`);
+        } else {
+          console.log("No indie games found, trying with additional filters");
+          
+          // If no indie games found, add indie tag to the query and try again
+          const indieParams = new URLSearchParams({
+            key: RAWG_API_KEY,
+            page_size: "20",
+            tags: "indie",
+            platforms: "4"
+          });
+          
+          const indieResponse = await fetch(
+            `${RAWG_BASE_URL}/games?${indieParams.toString()}`
+          );
+          
+          if (indieResponse.ok) {
+            const indieData = await indieResponse.json();
+            if (indieData.results?.length) {
+              console.log(`Found ${indieData.results.length} games with indie tag`);
+              filteredGames = indieData.results;
+            }
+          }
+        }
       }
 
       if (!filteredGames.length) {

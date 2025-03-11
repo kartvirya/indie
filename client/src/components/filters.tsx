@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
@@ -62,10 +62,10 @@ export default function Filters({ onFilterChange }: FiltersProps) {
       genres: genres.length > 0 ? genres : undefined,
       independentOnly
     };
-    
+
     if (minRating > 0) filters.minRating = minRating;
     if (minReviews > 0) filters.minReviews = minReviews;
-    
+
     console.log("Applying filters:", filters);
     onFilterChange(filters);
   };
@@ -75,6 +75,11 @@ export default function Filters({ onFilterChange }: FiltersProps) {
     animate: { scale: 1, opacity: 1 },
     exit: { scale: 0.9, opacity: 0 },
   };
+
+  useEffect(() => {
+    // Apply default filters when component mounts
+    updateFilters(["indie"], 60, 0, true);
+  }, []);
 
   return (
     <Card className="sticky top-4 backdrop-blur-sm bg-card/80 border-primary/20">
