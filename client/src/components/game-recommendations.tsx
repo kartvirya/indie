@@ -26,12 +26,15 @@ export default function GameRecommendations({ gameId }: GameRecommendationsProps
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <h2 className="text-2xl font-bold">Similar Games You Might Like</h2>
-        <div className="grid md:grid-cols-2 gap-6">
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <div className="grid sm:grid-cols-2 gap-6">
           {[...Array(2)].map((_, i) => (
             <div key={i} className="space-y-4">
-              <Skeleton className="h-48 w-full" />
+              <Skeleton className="aspect-video w-full" />
               <Skeleton className="h-4 w-3/4" />
               <Skeleton className="h-4 w-1/2" />
             </div>
@@ -57,7 +60,12 @@ export default function GameRecommendations({ gameId }: GameRecommendationsProps
   }
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="space-y-6"
+    >
       <div>
         <h2 className="text-2xl font-bold mb-2">Similar Games You Might Like</h2>
         <p className="text-muted-foreground">
@@ -67,7 +75,7 @@ export default function GameRecommendations({ gameId }: GameRecommendationsProps
         </p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid sm:grid-cols-2 gap-6">
         {data.results.map((game, index) => (
           <motion.div
             key={game.id}
@@ -79,6 +87,6 @@ export default function GameRecommendations({ gameId }: GameRecommendationsProps
           </motion.div>
         ))}
       </div>
-    </div>
+    </motion.div>
   );
 }
