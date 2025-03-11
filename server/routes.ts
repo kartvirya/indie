@@ -11,26 +11,51 @@ export async function registerRoutes(app: Express) {
     try {
       const filters = gameFilters.parse(req.query);
 
+      // Build query parameters
+      const queryParams = new URLSearchParams({
+        key: RAWG_API_KEY,
+        page_size: "40",
+        tags: "indie",
+        ordering: "-rating", // Get highly rated games first
+        metacritic: "70,100", // Only games with good ratings
+      });
+
+      if (filters.genres?.length) {
+        queryParams.append("genres", filters.genres.join(","));
+      }
+
+      if (filters.minRating) {
+        queryParams.append("metacritic", `${filters.minRating},100`);
+      }
+
       const response = await fetch(
-        `${RAWG_BASE_URL}/games?key=${RAWG_API_KEY}&page_size=40&tags=indie${
-          filters.genres ? `&genres=${filters.genres.join(",")}` : ""
-        }${filters.minRating ? `&metacritic=${filters.minRating},100` : ""}`
+        `${RAWG_BASE_URL}/games?${queryParams.toString()}`
       );
 
       if (!response.ok) {
-        throw new Error("Failed to fetch games from RAWG API");
+        const errorText = await response.text();
+        console.error("RAWG API Error:", errorText);
+        throw new Error(`RAWG API Error: ${response.status} ${errorText}`);
       }
 
       const data = await response.json();
-      const games = data.results;
+
+      if (!data.results?.length) {
+        return res.status(404).json({ 
+          message: "No games found matching your criteria. Try adjusting your filters." 
+        });
+      }
 
       // Randomly select a game from the results
-      const randomIndex = Math.floor(Math.random() * games.length);
-      const selectedGame = games[randomIndex];
+      const randomIndex = Math.floor(Math.random() * data.results.length);
+      const selectedGame = data.results[randomIndex];
 
       res.json(selectedGame);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch random game" });
+      console.error("Random game fetch error:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch random game. Please check your API key and try again." 
+      });
     }
   });
 
@@ -89,12 +114,15 @@ export async function registerRoutes(app: Express) {
       );
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error("RAWG API Error:", errorText);
         throw new Error("Failed to fetch genres");
       }
 
       const data = await response.json();
       res.json(data.results);
     } catch (error) {
+      console.error("Genre fetch error:", error);
       res.status(500).json({ message: "Failed to fetch genres" });
     }
   });
