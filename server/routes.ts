@@ -101,28 +101,44 @@ export async function registerRoutes(app: Express) {
       let filteredGames = data.results;
 
       if (filters.independentOnly) {
-        filteredGames = await Promise.all(
+        const detailedGames = await Promise.all(
           data.results.map(async (game: any) => {
-            const gameDetailsResponse = await fetch(
-              `${RAWG_BASE_URL}/games/${game.id}?key=${RAWG_API_KEY}`
-            );
+            try {
+              const gameDetailsResponse = await fetch(
+                `${RAWG_BASE_URL}/games/${game.id}?key=${RAWG_API_KEY}`
+              );
 
-            if (!gameDetailsResponse.ok) return null;
+              if (!gameDetailsResponse.ok) return null;
 
-            const gameDetails = await gameDetailsResponse.json();
-            const developers = gameDetails.developers || [];
-
-            // Check if any developer is in the major companies list
-            const isIndependent = !developers.some((dev: any) => 
-              MAJOR_COMPANIES.includes(dev.name)
-            );
-
-            return isIndependent ? game : null;
+              const gameDetails = await gameDetailsResponse.json();
+              const developers = gameDetails.developers || [];
+              
+              console.log(`Game ${game.name} developers:`, developers.map((dev: any) => dev.name));
+              
+              // Check if any developer is in the major companies list
+              const isIndependent = developers.length > 0 && 
+                !developers.some((dev: any) => MAJOR_COMPANIES.includes(dev.name));
+              
+              return {
+                game,
+                isIndependent,
+                hasDevelopers: developers.length > 0
+              };
+            } catch (error) {
+              console.error(`Error fetching details for game ${game.id}:`, error);
+              return null;
+            }
           })
         );
 
-        // Remove null values and games without developers
-        filteredGames = filteredGames.filter(Boolean);
+        // Filter out games without developer info and non-indie games
+        const validGames = detailedGames.filter(Boolean);
+        console.log(`Found ${validGames.length} games with developer info`);
+        
+        const indieGames = validGames.filter(item => item.isIndependent && item.hasDevelopers);
+        console.log(`Found ${indieGames.length} indie games after filtering`);
+        
+        filteredGames = indieGames.map(item => item.game);
       }
 
       if (!filteredGames.length) {

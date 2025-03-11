@@ -57,12 +57,17 @@ export default function Filters({ onFilterChange }: FiltersProps) {
     minReviews: number,
     independentOnly: boolean
   ) => {
-    onFilterChange({
-      genres,
-      minRating,
-      minReviews,
-      independentOnly,
-    });
+    // Only include non-zero values to avoid filtering with zeros
+    const filters: GameFilters = {
+      genres: genres.length > 0 ? genres : undefined,
+      independentOnly
+    };
+    
+    if (minRating > 0) filters.minRating = minRating;
+    if (minReviews > 0) filters.minReviews = minReviews;
+    
+    console.log("Applying filters:", filters);
+    onFilterChange(filters);
   };
 
   const badgeVariants = {

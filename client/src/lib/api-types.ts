@@ -26,4 +26,6 @@ export interface GameFilters {
   minRating?: number;
   maxPrice?: number;
   minPrice?: number;
+  minReviews?: number;
+  independentOnly?: boolean;
 }
