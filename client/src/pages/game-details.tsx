@@ -10,11 +10,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import GameRecommendations from "@/components/game-recommendations";
 import type { Game } from "@/lib/api-types";
 
 export default function GameDetails() {
   const [, params] = useRoute("/game/:id");
-  
+
   const { data: game, isLoading } = useQuery<Game>({
     queryKey: [`/api/games/${params?.id}`],
   });
@@ -41,6 +42,7 @@ export default function GameDetails() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
+        className="space-y-8"
       >
         <Card>
           <div className="aspect-video relative overflow-hidden">
@@ -50,11 +52,11 @@ export default function GameDetails() {
               className="object-cover w-full h-full"
             />
           </div>
-          
+
           <CardHeader>
             <CardTitle className="text-3xl">{game.name}</CardTitle>
           </CardHeader>
-          
+
           <CardContent className="space-y-6">
             <div className="flex flex-wrap gap-4">
               <Badge variant="secondary">
@@ -100,6 +102,8 @@ export default function GameDetails() {
             )}
           </CardContent>
         </Card>
+
+        {params?.id && <GameRecommendations gameId={params.id} />}
       </motion.div>
     </div>
   );
