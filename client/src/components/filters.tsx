@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
+import { Gamepad2 } from "lucide-react";
 import type { Genre, GameFilters } from "@/lib/api-types";
 
 interface FiltersProps {
@@ -38,33 +40,62 @@ export default function Filters({ onFilterChange }: FiltersProps) {
     });
   };
 
+  const badgeVariants = {
+    initial: { scale: 0.9, opacity: 0 },
+    animate: { scale: 1, opacity: 1 },
+    exit: { scale: 0.9, opacity: 0 },
+  };
+
   return (
-    <Card className="mb-8">
-      <CardHeader>
-        <CardTitle>Filters</CardTitle>
+    <Card className="sticky top-4 backdrop-blur-sm bg-card/80 border-primary/20">
+      <CardHeader className="space-y-2">
+        <div className="flex items-center space-x-2">
+          <Gamepad2 className="h-5 w-5 text-primary" />
+          <CardTitle>Game Filters</CardTitle>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Customize your game discovery
+        </p>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <h3 className="font-medium">Genres</h3>
+        <div className="space-y-3">
+          <h3 className="font-medium flex items-center gap-2">
+            Genres
+            {selectedGenres.length > 0 && (
+              <Badge variant="secondary" className="ml-2">
+                {selectedGenres.length} selected
+              </Badge>
+            )}
+          </h3>
           <div className="flex flex-wrap gap-2">
             {isLoading ? (
-              <div>Loading genres...</div>
+              <div className="text-sm text-muted-foreground animate-pulse">
+                Loading genres...
+              </div>
             ) : (
-              genres?.map((genre) => (
-                <Badge
+              genres?.map((genre, index) => (
+                <motion.div
                   key={genre.id}
-                  variant={selectedGenres.includes(genre.slug) ? "default" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => handleGenreToggle(genre.slug)}
+                  variants={badgeVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  transition={{ delay: index * 0.05 }}
                 >
-                  {genre.name}
-                </Badge>
+                  <Badge
+                    variant={selectedGenres.includes(genre.slug) ? "default" : "outline"}
+                    className="cursor-pointer hover:scale-105 transition-transform"
+                    onClick={() => handleGenreToggle(genre.slug)}
+                  >
+                    {genre.name}
+                  </Badge>
+                </motion.div>
               ))
             )}
           </div>
         </div>
-        
-        <div className="space-y-2">
+
+        <div className="space-y-3">
           <h3 className="font-medium">Minimum Rating</h3>
           <Slider
             value={rating}
@@ -74,11 +105,14 @@ export default function Filters({ onFilterChange }: FiltersProps) {
             className="w-full"
           />
           <div className="text-sm text-muted-foreground">
-            {rating[0]}%
+            {rating[0]}% or higher
           </div>
         </div>
 
-        <Button onClick={applyFilters} className="w-full">
+        <Button
+          onClick={applyFilters}
+          className="w-full bg-primary/10 hover:bg-primary/20 text-primary"
+        >
           Apply Filters
         </Button>
       </CardContent>
