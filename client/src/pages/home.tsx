@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Dice6 } from "lucide-react";
@@ -22,6 +22,16 @@ export default function Home() {
     enabled: false,
   });
 
+  useEffect(() => {
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to fetch random game. Please try again.",
+      });
+    }
+  }, [error, toast]);
+
   const handleRandomize = () => {
     refetch();
   };
@@ -29,14 +39,6 @@ export default function Home() {
   const handleFilterChange = (newFilters: GameFilters) => {
     setFilters(newFilters);
   };
-
-  if (error) {
-    toast({
-      variant: "destructive",
-      title: "Error",
-      description: "Failed to fetch random game. Please try again.",
-    });
-  }
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-background to-accent/5">
