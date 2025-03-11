@@ -109,24 +109,55 @@ export async function registerRoutes(app: Express) {
       );
 
       if (!gameResponse.ok) {
+        const errorText = await gameResponse.text();
+        console.error("RAWG API Error:", errorText);
         throw new Error("Failed to fetch game details");
       }
 
       const game = await gameResponse.json();
+
+      // Get genres, tags, and developers for better recommendations
       const genres = game.genres.map((g: any) => g.id).join(",");
       const tags = game.tags?.slice(0, 3).map((t: any) => t.id).join(",") || "";
+      const developers = game.developers?.map((d: any) => d.id).join(",") || "";
+
+      // Build query parameters for recommendations
+      const queryParams = new URLSearchParams({
+        key: RAWG_API_KEY,
+        genres: genres,
+        tags: tags,
+        developers: developers,
+        exclude_games: id,
+        page_size: "4",
+        ordering: "-rating",
+        dates: "2015-01-01,2024-12-31", // Recent games
+        platforms: "4", // PC games (Steam platform)
+        metacritic: "70,100" // Good quality games
+      });
+
+      console.log("Fetching recommendations with params:", queryParams.toString());
 
       const recommendationsResponse = await fetch(
-        `${RAWG_BASE_URL}/games?key=${RAWG_API_KEY}&genres=${genres}&tags=${tags}&exclude_games=${id}&page_size=4&ordering=-rating`
+        `${RAWG_BASE_URL}/games?${queryParams.toString()}`
       );
 
       if (!recommendationsResponse.ok) {
+        const errorText = await recommendationsResponse.text();
+        console.error("RAWG API Error:", errorText);
         throw new Error("Failed to fetch recommendations");
       }
 
       const recommendations = await recommendationsResponse.json();
-      res.json(recommendations.results);
+      res.json({
+        results: recommendations.results,
+        similarityFactors: {
+          genres: game.genres.map((g: any) => g.name),
+          tags: game.tags?.slice(0, 3).map((t: any) => t.name) || [],
+          developers: game.developers?.map((d: any) => d.name) || []
+        }
+      });
     } catch (error) {
+      console.error("Recommendation fetch error:", error);
       res.status(500).json({ message: "Failed to fetch recommendations" });
     }
   });
