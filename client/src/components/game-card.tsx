@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Star, CalendarDays, Share2 } from "lucide-react";
+import { Star, CalendarDays, Share2, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Game } from "@/lib/api-types";
 
@@ -59,6 +59,10 @@ export default function GameCard({ game }: GameCardProps) {
                   <Badge variant="secondary" className="flex items-center gap-1">
                     <Star className="h-3 w-3 md:h-4 md:w-4 text-yellow-400" />
                     {Math.round(game.rating * 10) / 10}
+                  </Badge>
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <Users className="h-3 w-3 md:h-4 md:w-4" />
+                    {game.ratings_count.toLocaleString()} reviews
                   </Badge>
                   <Badge variant="secondary" className="flex items-center gap-1">
                     <CalendarDays className="h-3 w-3 md:h-4 md:w-4" />

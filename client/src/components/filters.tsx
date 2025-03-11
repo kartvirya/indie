@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
@@ -29,19 +28,40 @@ export default function Filters({ onFilterChange }: FiltersProps) {
   });
 
   const handleGenreToggle = (genreSlug: string) => {
-    setSelectedGenres((prev) =>
-      prev.includes(genreSlug)
-        ? prev.filter((g) => g !== genreSlug)
-        : [...prev, genreSlug]
-    );
+    const newGenres = selectedGenres.includes(genreSlug)
+      ? selectedGenres.filter((g) => g !== genreSlug)
+      : [...selectedGenres, genreSlug];
+
+    setSelectedGenres(newGenres);
+    updateFilters(newGenres, rating[0], reviews[0], independentOnly);
   };
 
-  const applyFilters = () => {
+  const handleRatingChange = (newRating: number[]) => {
+    setRating(newRating);
+    updateFilters(selectedGenres, newRating[0], reviews[0], independentOnly);
+  };
+
+  const handleReviewsChange = (newReviews: number[]) => {
+    setReviews(newReviews);
+    updateFilters(selectedGenres, rating[0], newReviews[0], independentOnly);
+  };
+
+  const handleIndependentChange = (checked: boolean) => {
+    setIndependentOnly(checked);
+    updateFilters(selectedGenres, rating[0], reviews[0], checked);
+  };
+
+  const updateFilters = (
+    genres: string[],
+    minRating: number,
+    minReviews: number,
+    independentOnly: boolean
+  ) => {
     onFilterChange({
-      genres: selectedGenres,
-      minRating: rating[0],
-      minReviews: reviews[0],
-      independentOnly: independentOnly,
+      genres,
+      minRating,
+      minReviews,
+      independentOnly,
     });
   };
 
@@ -106,7 +126,7 @@ export default function Filters({ onFilterChange }: FiltersProps) {
           </h3>
           <Slider
             value={rating}
-            onValueChange={setRating}
+            onValueChange={handleRatingChange}
             max={100}
             step={10}
             className="w-full"
@@ -122,7 +142,7 @@ export default function Filters({ onFilterChange }: FiltersProps) {
           </h3>
           <Slider
             value={reviews}
-            onValueChange={setReviews}
+            onValueChange={handleReviewsChange}
             max={1000}
             step={100}
             className="w-full"
@@ -136,7 +156,7 @@ export default function Filters({ onFilterChange }: FiltersProps) {
           <Checkbox
             id="independent"
             checked={independentOnly}
-            onCheckedChange={(checked) => setIndependentOnly(checked as boolean)}
+            onCheckedChange={(checked) => handleIndependentChange(checked as boolean)}
           />
           <label
             htmlFor="independent"
@@ -145,13 +165,6 @@ export default function Filters({ onFilterChange }: FiltersProps) {
             Show only independent developers
           </label>
         </div>
-
-        <Button
-          onClick={applyFilters}
-          className="w-full bg-primary/10 hover:bg-primary/20 text-primary"
-        >
-          Apply Filters
-        </Button>
       </CardContent>
     </Card>
   );
