@@ -145,7 +145,7 @@ export async function registerRoutes(app: Express) {
             );
             // Fall back to detailed developer check
             // Use a smaller batch of games for detailed processing
-            const gamesToProcess = data.results.slice(0, 15); // Increase to 15 for better results
+            const gamesToProcess = data.results.slice(0, 100); // Increase to 15 for better results
             console.log(
               `Processing ${gamesToProcess.length} games for indie filtering`,
             );
