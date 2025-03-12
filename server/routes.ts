@@ -103,103 +103,200 @@ export async function registerRoutes(app: Express) {
 
       if (filters.independentOnly) {
         console.log("Independent only filter is ON");
-        // Use a smaller batch of games for detailed processing
-        const gamesToProcess = data.results.slice(0, 10);
-        console.log(
-          `Processing ${gamesToProcess.length} games for indie filtering`,
+        
+        // First, try directly with indie tag to improve efficiency
+        const indieParams = new URLSearchParams({
+          key: RAWG_API_KEY,
+          page_size: "20",
+          tags: "indie",
+          platforms: "4",
+        });
+        
+        // Add genres if specified
+        if (filters.genres?.length) {
+          indieParams.append("genres", filters.genres.join(","));
+        }
+        
+        // Add rating filter if specified
+        if (filters.minRating) {
+          indieParams.append("metacritic", `${filters.minRating},100`);
+        }
+
+        console.log("Fetching indie games with params:", indieParams.toString());
+        const indieResponse = await fetch(
+          `${RAWG_BASE_URL}/games?${indieParams.toString()}`,
         );
 
-        const detailedGames = await Promise.all(
-          gamesToProcess.map(async (game: any) => {
-            try {
-              // Add a small delay to avoid rate limiting
-              await new Promise((resolve) => setTimeout(resolve, 100));
+        if (indieResponse.ok) {
+          const indieData = await indieResponse.json();
+          if (indieData.results?.length >= 5) {
+            console.log(`Found ${indieData.results.length} games with indie tag`);
+            filteredGames = indieData.results;
+            // Skip the detailed check if we found enough games with the indie tag
+          } else {
+            console.log("Not enough indie games found with tag, doing detailed check");
+            // Fall back to detailed developer check
+            // Use a smaller batch of games for detailed processing
+            const gamesToProcess = data.results.slice(0, 15); // Increase to 15 for better results
+            console.log(
+              `Processing ${gamesToProcess.length} games for indie filtering`,
+            );
 
-              const gameDetailsResponse = await fetch(
-                `${RAWG_BASE_URL}/games/${game.id}?key=${RAWG_API_KEY}`,
-              );
+            const detailedGames = await Promise.all(
+              gamesToProcess.map(async (game: any) => {
+                try {
+                  // Add a small delay to avoid rate limiting
+                  await new Promise((resolve) => setTimeout(resolve, 100));
 
-              if (!gameDetailsResponse.ok) {
+                  const gameDetailsResponse = await fetch(
+                    `${RAWG_BASE_URL}/games/${game.id}?key=${RAWG_API_KEY}`,
+                  );
+
+                  if (!gameDetailsResponse.ok) {
+                    console.error(
+                      `Failed to fetch details for ${game.name}: ${gameDetailsResponse.status}`,
+                    );
+                    return null;
+                  }
+
+                  const gameDetails = await gameDetailsResponse.json();
+                  const developers = gameDetails.developers || [];
+
+                  const devNames = developers.map((dev: any) => dev.name);
+                  console.log(
+                    `Game "${game.name}" developers:`,
+                    devNames.join(", ") || "None",
+                  );
+
+                  // Check if game has indie tag
+                  const tags = gameDetails.tags || [];
+                  const hasIndieTag = tags.some((tag: any) => tag.slug === 'indie');
+                  
+                  // A game is independent if it has indie tag OR (has developers and none are in the major companies list)
+                  const isIndependent =
+                    hasIndieTag || 
+                    (developers.length > 0 &&
+                    !developers.some((dev: any) =>
+                      MAJOR_COMPANIES.includes(dev.name),
+                    ));
+
+                  if (isIndependent) {
+                    console.log(`✅ "${game.name}" is INDIE`);
+                  } else if (developers.length > 0) {
+                    console.log(`❌ "${game.name}" is NOT indie`);
+                  } else {
+                    console.log(`⚠️ "${game.name}" has no developer info`);
+                  }
+
+                  return {
+                    game,
+                    isIndependent,
+                    hasDevelopers: developers.length > 0 || hasIndieTag,
+                  };
+                } catch (error) {
+                  console.error(
+                    `Error fetching details for game ${game.id}:`,
+                    error,
+                  );
+                  return null;
+                }
+              }),
+            );
+
+            // Filter out games without developer info and non-indie games
+            const validGames = detailedGames.filter(Boolean);
+            console.log(`Found ${validGames.length} games with developer info`);
+
+            const indieGames = validGames.filter(
+              (item) => item.isIndependent
+            );
+            console.log(`Found ${indieGames.length} indie games after filtering`);
+
+            if (indieGames.length > 0) {
+              filteredGames = indieGames.map((item) => item.game);
+              console.log(`Returning ${filteredGames.length} indie games`);
+            } else {
+              console.log("No indie games found, using games with indie tag as fallback");
+              filteredGames = indieData.results || [];
+            }
+          }
+        } else {
+          // If indie tag request fails, fall back to original method
+          console.log("Indie tag request failed, using developer-based filtering");
+          // Use a smaller batch of games for detailed processing
+          const gamesToProcess = data.results.slice(0, 15);
+          console.log(
+            `Processing ${gamesToProcess.length} games for indie filtering`,
+          );
+
+          const detailedGames = await Promise.all(
+            gamesToProcess.map(async (game: any) => {
+              try {
+                // Add a small delay to avoid rate limiting
+                await new Promise((resolve) => setTimeout(resolve, 100));
+
+                const gameDetailsResponse = await fetch(
+                  `${RAWG_BASE_URL}/games/${game.id}?key=${RAWG_API_KEY}`,
+                );
+
+                if (!gameDetailsResponse.ok) {
+                  console.error(
+                    `Failed to fetch details for ${game.name}: ${gameDetailsResponse.status}`,
+                  );
+                  return null;
+                }
+
+                const gameDetails = await gameDetailsResponse.json();
+                const developers = gameDetails.developers || [];
+
+                const devNames = developers.map((dev: any) => dev.name);
+                console.log(
+                  `Game "${game.name}" developers:`,
+                  devNames.join(", ") || "None",
+                );
+
+                // A game is independent if it has developers and none are in the major companies list
+                const isIndependent =
+                  developers.length > 0 &&
+                  !developers.some((dev: any) =>
+                    MAJOR_COMPANIES.includes(dev.name),
+                  );
+
+                if (isIndependent) {
+                  console.log(`✅ "${game.name}" is INDIE`);
+                } else if (developers.length > 0) {
+                  console.log(`❌ "${game.name}" is NOT indie`);
+                } else {
+                  console.log(`⚠️ "${game.name}" has no developer info`);
+                }
+
+                return {
+                  game,
+                  isIndependent,
+                  hasDevelopers: developers.length > 0,
+                };
+              } catch (error) {
                 console.error(
-                  `Failed to fetch details for ${game.name}: ${gameDetailsResponse.status}`,
+                  `Error fetching details for game ${game.id}:`,
+                  error,
                 );
                 return null;
               }
-
-              const gameDetails = await gameDetailsResponse.json();
-              const developers = gameDetails.developers || [];
-
-              const devNames = developers.map((dev: any) => dev.name);
-              console.log(
-                `Game "${game.name}" developers:`,
-                devNames.join(", ") || "None",
-              );
-
-              // A game is independent if it has developers and none are in the major companies list
-              const isIndependent =
-                developers.length > 0 &&
-                !developers.some((dev: any) =>
-                  MAJOR_COMPANIES.includes(dev.name),
-                );
-
-              if (isIndependent) {
-                console.log(`✅ "${game.name}" is INDIE`);
-              } else if (developers.length > 0) {
-                console.log(`❌ "${game.name}" is NOT indie`);
-              } else {
-                console.log(`⚠️ "${game.name}" has no developer info`);
-              }
-
-              return {
-                game,
-                isIndependent,
-                hasDevelopers: developers.length > 0,
-              };
-            } catch (error) {
-              console.error(
-                `Error fetching details for game ${game.id}:`,
-                error,
-              );
-              return null;
-            }
-          }),
-        );
-
-        // Filter out games without developer info and non-indie games
-        const validGames = detailedGames.filter(Boolean);
-        console.log(`Found ${validGames.length} games with developer info`);
-
-        const indieGames = validGames.filter(
-          (item) => item.isIndependent && item.hasDevelopers,
-        );
-        console.log(`Found ${indieGames.length} indie games after filtering`);
-
-        if (indieGames.length > 0) {
-          filteredGames = indieGames.map((item) => item.game);
-          console.log(`Returning ${filteredGames.length} indie games`);
-        } else {
-          console.log("No indie games found, trying with additional filters");
-
-          // If no indie games found, add indie tag to the query and try again
-          const indieParams = new URLSearchParams({
-            key: RAWG_API_KEY,
-            page_size: "20",
-            tags: "indie",
-            platforms: "4",
-          });
-
-          const indieResponse = await fetch(
-            `${RAWG_BASE_URL}/games?${indieParams.toString()}`,
+            }),
           );
 
-          if (indieResponse.ok) {
-            const indieData = await indieResponse.json();
-            if (indieData.results?.length) {
-              console.log(
-                `Found ${indieData.results.length} games with indie tag`,
-              );
-              filteredGames = indieData.results;
-            }
+          // Filter out games without developer info and non-indie games
+          const validGames = detailedGames.filter(Boolean);
+          console.log(`Found ${validGames.length} games with developer info`);
+
+          const indieGames = validGames.filter(
+            (item) => item.isIndependent && item.hasDevelopers,
+          );
+          console.log(`Found ${indieGames.length} indie games after filtering`);
+
+          if (indieGames.length > 0) {
+            filteredGames = indieGames.map((item) => item.game);
+            console.log(`Returning ${filteredGames.length} indie games`);
           }
         }
       }

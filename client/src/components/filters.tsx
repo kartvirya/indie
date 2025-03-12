@@ -78,6 +78,9 @@ export default function Filters({ onFilterChange }: FiltersProps) {
 
   useEffect(() => {
     // Apply default filters when component mounts
+    setSelectedGenres(["indie"]);
+    setRating([60]);
+    setIndependentOnly(true);
     updateFilters(["indie"], 60, 0, true);
   }, []);
 
