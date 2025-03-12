@@ -33,11 +33,12 @@ export async function registerRoutes(app: Express) {
   app.get("/api/games/random", async (req, res) => {
     try {
       const filters = gameFilters.parse(req.query);
+      filters.independentOnly = true;
 
       // Simplified query parameters for better results
       const queryParams = new URLSearchParams({
         key: RAWG_API_KEY,
-        page_size: "20",
+        page_size: "1000",
         dates: "2015-01-01,2024-12-31", // Recent games
         platforms: "4", // PC games (Steam platform)
       });
@@ -58,7 +59,7 @@ export async function registerRoutes(app: Express) {
       console.log("Fetching games with params:", queryParams.toString());
 
       const response = await fetch(
-        `${RAWG_BASE_URL}/games?${queryParams.toString()}`
+        `${RAWG_BASE_URL}/games?${queryParams.toString()}`,
       );
 
       if (!response.ok) {
@@ -80,7 +81,7 @@ export async function registerRoutes(app: Express) {
         });
 
         const fallbackResponse = await fetch(
-          `${RAWG_BASE_URL}/games?${fallbackParams.toString()}`
+          `${RAWG_BASE_URL}/games?${fallbackParams.toString()}`,
         );
 
         if (!fallbackResponse.ok) {
@@ -89,8 +90,8 @@ export async function registerRoutes(app: Express) {
 
         const fallbackData = await fallbackResponse.json();
         if (!fallbackData.results?.length) {
-          return res.status(404).json({ 
-            message: "No games found. Please try again." 
+          return res.status(404).json({
+            message: "No games found. Please try again.",
           });
         }
 
@@ -104,33 +105,43 @@ export async function registerRoutes(app: Express) {
         console.log("Independent only filter is ON");
         // Use a smaller batch of games for detailed processing
         const gamesToProcess = data.results.slice(0, 10);
-        console.log(`Processing ${gamesToProcess.length} games for indie filtering`);
-        
+        console.log(
+          `Processing ${gamesToProcess.length} games for indie filtering`,
+        );
+
         const detailedGames = await Promise.all(
           gamesToProcess.map(async (game: any) => {
             try {
               // Add a small delay to avoid rate limiting
-              await new Promise(resolve => setTimeout(resolve, 100));
-              
+              await new Promise((resolve) => setTimeout(resolve, 100));
+
               const gameDetailsResponse = await fetch(
-                `${RAWG_BASE_URL}/games/${game.id}?key=${RAWG_API_KEY}`
+                `${RAWG_BASE_URL}/games/${game.id}?key=${RAWG_API_KEY}`,
               );
 
               if (!gameDetailsResponse.ok) {
-                console.error(`Failed to fetch details for ${game.name}: ${gameDetailsResponse.status}`);
+                console.error(
+                  `Failed to fetch details for ${game.name}: ${gameDetailsResponse.status}`,
+                );
                 return null;
               }
 
               const gameDetails = await gameDetailsResponse.json();
               const developers = gameDetails.developers || [];
-              
+
               const devNames = developers.map((dev: any) => dev.name);
-              console.log(`Game "${game.name}" developers:`, devNames.join(", ") || "None");
-              
+              console.log(
+                `Game "${game.name}" developers:`,
+                devNames.join(", ") || "None",
+              );
+
               // A game is independent if it has developers and none are in the major companies list
-              const isIndependent = developers.length > 0 && 
-                !developers.some((dev: any) => MAJOR_COMPANIES.includes(dev.name));
-              
+              const isIndependent =
+                developers.length > 0 &&
+                !developers.some((dev: any) =>
+                  MAJOR_COMPANIES.includes(dev.name),
+                );
+
               if (isIndependent) {
                 console.log(`✅ "${game.name}" is INDIE`);
               } else if (developers.length > 0) {
@@ -138,48 +149,55 @@ export async function registerRoutes(app: Express) {
               } else {
                 console.log(`⚠️ "${game.name}" has no developer info`);
               }
-              
+
               return {
                 game,
                 isIndependent,
-                hasDevelopers: developers.length > 0
+                hasDevelopers: developers.length > 0,
               };
             } catch (error) {
-              console.error(`Error fetching details for game ${game.id}:`, error);
+              console.error(
+                `Error fetching details for game ${game.id}:`,
+                error,
+              );
               return null;
             }
-          })
+          }),
         );
 
         // Filter out games without developer info and non-indie games
         const validGames = detailedGames.filter(Boolean);
         console.log(`Found ${validGames.length} games with developer info`);
-        
-        const indieGames = validGames.filter(item => item.isIndependent && item.hasDevelopers);
+
+        const indieGames = validGames.filter(
+          (item) => item.isIndependent && item.hasDevelopers,
+        );
         console.log(`Found ${indieGames.length} indie games after filtering`);
-        
+
         if (indieGames.length > 0) {
-          filteredGames = indieGames.map(item => item.game);
+          filteredGames = indieGames.map((item) => item.game);
           console.log(`Returning ${filteredGames.length} indie games`);
         } else {
           console.log("No indie games found, trying with additional filters");
-          
+
           // If no indie games found, add indie tag to the query and try again
           const indieParams = new URLSearchParams({
             key: RAWG_API_KEY,
             page_size: "20",
             tags: "indie",
-            platforms: "4"
+            platforms: "4",
           });
-          
+
           const indieResponse = await fetch(
-            `${RAWG_BASE_URL}/games?${indieParams.toString()}`
+            `${RAWG_BASE_URL}/games?${indieParams.toString()}`,
           );
-          
+
           if (indieResponse.ok) {
             const indieData = await indieResponse.json();
             if (indieData.results?.length) {
-              console.log(`Found ${indieData.results.length} games with indie tag`);
+              console.log(
+                `Found ${indieData.results.length} games with indie tag`,
+              );
               filteredGames = indieData.results;
             }
           }
@@ -187,8 +205,9 @@ export async function registerRoutes(app: Express) {
       }
 
       if (!filteredGames.length) {
-        return res.status(404).json({ 
-          message: "No indie games found matching your criteria. Try adjusting your filters." 
+        return res.status(404).json({
+          message:
+            "No indie games found matching your criteria. Try adjusting your filters.",
         });
       }
 
@@ -199,8 +218,8 @@ export async function registerRoutes(app: Express) {
       res.json(selectedGame);
     } catch (error) {
       console.error("Random game fetch error:", error);
-      res.status(500).json({ 
-        message: "Failed to fetch random game. Please try again." 
+      res.status(500).json({
+        message: "Failed to fetch random game. Please try again.",
       });
     }
   });
@@ -209,7 +228,7 @@ export async function registerRoutes(app: Express) {
     try {
       const { id } = req.params;
       const response = await fetch(
-        `${RAWG_BASE_URL}/games/${id}?key=${RAWG_API_KEY}`
+        `${RAWG_BASE_URL}/games/${id}?key=${RAWG_API_KEY}`,
       );
 
       if (!response.ok) {
@@ -227,7 +246,7 @@ export async function registerRoutes(app: Express) {
     try {
       const { id } = req.params;
       const gameResponse = await fetch(
-        `${RAWG_BASE_URL}/games/${id}?key=${RAWG_API_KEY}`
+        `${RAWG_BASE_URL}/games/${id}?key=${RAWG_API_KEY}`,
       );
 
       if (!gameResponse.ok) {
@@ -240,7 +259,11 @@ export async function registerRoutes(app: Express) {
 
       // Get genres, tags, and developers for better recommendations
       const genres = game.genres.map((g: any) => g.id).join(",");
-      const tags = game.tags?.slice(0, 3).map((t: any) => t.id).join(",") || "";
+      const tags =
+        game.tags
+          ?.slice(0, 3)
+          .map((t: any) => t.id)
+          .join(",") || "";
       const developers = game.developers?.map((d: any) => d.id).join(",") || "";
 
       // Build query parameters for recommendations
@@ -254,13 +277,16 @@ export async function registerRoutes(app: Express) {
         ordering: "-rating",
         dates: "2015-01-01,2024-12-31", // Recent games
         platforms: "4", // PC games (Steam platform)
-        metacritic: "70,100" // Good quality games
+        metacritic: "70,100", // Good quality games
       });
 
-      console.log("Fetching recommendations with params:", queryParams.toString());
+      console.log(
+        "Fetching recommendations with params:",
+        queryParams.toString(),
+      );
 
       const recommendationsResponse = await fetch(
-        `${RAWG_BASE_URL}/games?${queryParams.toString()}`
+        `${RAWG_BASE_URL}/games?${queryParams.toString()}`,
       );
 
       if (!recommendationsResponse.ok) {
@@ -275,8 +301,8 @@ export async function registerRoutes(app: Express) {
         similarityFactors: {
           genres: game.genres.map((g: any) => g.name),
           tags: game.tags?.slice(0, 3).map((t: any) => t.name) || [],
-          developers: game.developers?.map((d: any) => d.name) || []
-        }
+          developers: game.developers?.map((d: any) => d.name) || [],
+        },
       });
     } catch (error) {
       console.error("Recommendation fetch error:", error);
@@ -287,7 +313,7 @@ export async function registerRoutes(app: Express) {
   app.get("/api/genres", async (_req, res) => {
     try {
       const response = await fetch(
-        `${RAWG_BASE_URL}/genres?key=${RAWG_API_KEY}`
+        `${RAWG_BASE_URL}/genres?key=${RAWG_API_KEY}`,
       );
 
       if (!response.ok) {
