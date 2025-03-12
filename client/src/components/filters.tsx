@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -10,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
-import { Gamepad2, Star, Users } from "lucide-react";
+import { Gamepad2, Star, Users, Calendar } from "lucide-react";
 import type { Genre, GameFilters } from "@/lib/api-types";
 
 interface FiltersProps {
@@ -21,46 +20,53 @@ export default function Filters({ onFilterChange }: FiltersProps) {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [rating, setRating] = useState([0]);
   const [reviews, setReviews] = useState([0]);
-  const [independentOnly, setIndependentOnly] = useState(true);
+  const [releaseYears, setReleaseYears] = useState([2015]); // Default to 2015 as minimum year
 
   const { data: genres, isLoading } = useQuery<Genre[]>({
     queryKey: ["/api/genres"],
   });
 
   const handleGenreToggle = (genreSlug: string) => {
+    // Skip the "indie" genre as it's always applied
+    if (genreSlug === "indie") return;
+    
     const newGenres = selectedGenres.includes(genreSlug)
       ? selectedGenres.filter((g) => g !== genreSlug)
       : [...selectedGenres, genreSlug];
 
     setSelectedGenres(newGenres);
-    updateFilters(newGenres, rating[0], reviews[0], independentOnly);
+    updateFilters(newGenres, rating[0], reviews[0], releaseYears[0]);
   };
 
   const handleRatingChange = (newRating: number[]) => {
     setRating(newRating);
-    updateFilters(selectedGenres, newRating[0], reviews[0], independentOnly);
+    updateFilters(selectedGenres, newRating[0], reviews[0], releaseYears[0]);
   };
 
   const handleReviewsChange = (newReviews: number[]) => {
     setReviews(newReviews);
-    updateFilters(selectedGenres, rating[0], newReviews[0], independentOnly);
+    updateFilters(selectedGenres, rating[0], newReviews[0], releaseYears[0]);
   };
 
-  const handleIndependentChange = (checked: boolean) => {
-    setIndependentOnly(checked);
-    updateFilters(selectedGenres, rating[0], reviews[0], checked);
+  const handleReleaseYearChange = (newYears: number[]) => {
+    setReleaseYears(newYears);
+    updateFilters(selectedGenres, rating[0], reviews[0], newYears[0]);
   };
 
   const updateFilters = (
     genres: string[],
     minRating: number,
     minReviews: number,
-    independentOnly: boolean
+    minReleaseYear: number
   ) => {
+    // Always include "indie" genre and set independentOnly to true
+    const allGenres = genres.includes("indie") ? genres : [...genres, "indie"];
+    
     // Only include non-zero values to avoid filtering with zeros
     const filters: GameFilters = {
-      genres: genres.length > 0 ? genres : undefined,
-      independentOnly
+      genres: allGenres.length > 0 ? allGenres : ["indie"],
+      independentOnly: true,
+      minReleaseYear: minReleaseYear
     };
 
     if (minRating > 0) filters.minRating = minRating;
@@ -78,10 +84,10 @@ export default function Filters({ onFilterChange }: FiltersProps) {
 
   useEffect(() => {
     // Apply default filters when component mounts
-    setSelectedGenres(["indie"]);
+    setSelectedGenres([]);
     setRating([60]);
-    setIndependentOnly(true);
-    updateFilters(["indie"], 60, 0, true);
+    setReleaseYears([2015]);
+    updateFilters([], 60, 0, 2015);
   }, []);
 
   return (
@@ -92,13 +98,13 @@ export default function Filters({ onFilterChange }: FiltersProps) {
           <CardTitle>Game Filters</CardTitle>
         </div>
         <p className="text-sm text-muted-foreground">
-          Customize your game discovery
+          Customize your indie game discovery
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-3">
           <h3 className="font-medium flex items-center gap-2">
-            Genres
+            Additional Genres
             {selectedGenres.length > 0 && (
               <Badge variant="secondary" className="ml-2">
                 {selectedGenres.length} selected
@@ -111,7 +117,7 @@ export default function Filters({ onFilterChange }: FiltersProps) {
                 Loading genres...
               </div>
             ) : (
-              genres?.map((genre, index) => (
+              genres?.filter(genre => genre.slug !== "indie").map((genre, index) => (
                 <motion.div
                   key={genre.id}
                   variants={badgeVariants}
@@ -165,18 +171,21 @@ export default function Filters({ onFilterChange }: FiltersProps) {
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="independent"
-            checked={independentOnly}
-            onCheckedChange={(checked) => handleIndependentChange(checked as boolean)}
+        <div className="space-y-3">
+          <h3 className="font-medium flex items-center gap-2">
+            <Calendar className="h-4 w-4" /> Release Year (and newer)
+          </h3>
+          <Slider
+            value={releaseYears}
+            onValueChange={handleReleaseYearChange}
+            min={2000}
+            max={2024}
+            step={1}
+            className="w-full"
           />
-          <label
-            htmlFor="independent"
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-          >
-            Show only independent developers
-          </label>
+          <div className="text-sm text-muted-foreground">
+            {releaseYears[0]} or newer
+          </div>
         </div>
       </CardContent>
     </Card>

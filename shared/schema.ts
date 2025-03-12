@@ -9,9 +9,7 @@ export const gameFilters = z.object({
   minRating: z.number().optional(),
   minReviews: z.number().optional(),
   maxReviews: z.number().optional(),
-  independentOnly: z.boolean().optional(),
-  page: z.number().optional(),
-  pageSize: z.number().optional(),
+  minReleaseYear: z.coerce.number().min(1990).max(2030).optional(),
 });
 
 export type GameFilters = z.infer<typeof gameFilters>;

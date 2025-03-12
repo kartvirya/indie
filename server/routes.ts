@@ -35,18 +35,27 @@ export async function registerRoutes(app: Express) {
       const filters = gameFilters.parse(req.query);
       filters.independentOnly = true;
 
+      // Get release year filter or default to 2015
+      const minReleaseYear = filters.minReleaseYear || 2015;
+      const startDate = `${minReleaseYear}-01-01`;
+      const endDate = '2024-12-31';
+      
       // Simplified query parameters for better results
       const queryParams = new URLSearchParams({
         genres: "indie",
         key: RAWG_API_KEY,
         page_size: "100000",
-        dates: "2015-01-01,2024-12-31", // Recent games
+        dates: `${startDate},${endDate}`,
         platforms: "4", // PC games (Steam platform)
       });
 
       // Add optional filters
       if (filters.genres?.length) {
-        queryParams.append("genres", filters.genres.join(","));
+        // "indie" is already included as a primary filter, no need to add it again
+        const additionalGenres = filters.genres.filter(g => g !== "indie");
+        if (additionalGenres.length > 0) {
+          queryParams.append("genres", additionalGenres.join(","));
+        }
       }
 
       if (filters.minRating) {
