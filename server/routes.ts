@@ -39,7 +39,7 @@ export async function registerRoutes(app: Express) {
       const minReleaseYear = filters.minReleaseYear || 2015;
       const startDate = `${minReleaseYear}-01-01`;
       const endDate = '2024-12-31';
-
+      
       // Simplified query parameters for better results
       const queryParams = new URLSearchParams({
         genres: "indie",
@@ -63,7 +63,7 @@ export async function registerRoutes(app: Express) {
       }
 
       if (filters.minReviews) {
-        queryParams.append("ratings_count", `${filters.minReviews}`);
+        queryParams.append("ratings_count", `${filters.minReviews},5000`);
       }
 
       console.log("Fetching games with params:", queryParams.toString());
@@ -130,11 +130,6 @@ export async function registerRoutes(app: Express) {
         // Add rating filter if specified
         if (filters.minRating) {
           indieParams.append("metacritic", `${filters.minRating},100`);
-        }
-
-        // Add reviews filter if specified
-        if (filters.minReviews) {
-          indieParams.append("ratings_count", `${filters.minReviews}`);
         }
 
         console.log(
