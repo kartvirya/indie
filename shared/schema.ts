@@ -3,7 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const gameFilters = z.object({
-  genres: z.array(z.string()).optional(),
+  genres: z.array(z.string()).default(["indie"]),
   minPrice: z.number().optional(),
   maxPrice: z.number().optional(),
   minRating: z.number().optional(),
