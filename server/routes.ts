@@ -47,7 +47,6 @@ export async function registerRoutes(app: Express) {
         page_size: "100000",
         dates: `${startDate},${endDate}`,
         platforms: "4", // PC games (Steam platform)
-        ordering: "-released", // Sort by release date, newest first
       });
 
       // Add optional filters
@@ -60,13 +59,11 @@ export async function registerRoutes(app: Express) {
       }
 
       if (filters.minRating) {
-        // Use metacritic for better filtering of quality games
         queryParams.append("metacritic", `${filters.minRating},100`);
       }
 
       if (filters.minReviews) {
-        // Make sure to properly format the reviews filter
-        queryParams.append("ratings_count", `>=${filters.minReviews}`);
+        queryParams.append("ratings_count", `${filters.minReviews},5000`);
       }
 
       console.log("Fetching games with params:", queryParams.toString());
@@ -91,7 +88,6 @@ export async function registerRoutes(app: Express) {
           page_size: "20",
           dates: "2015-01-01,2024-12-31",
           platforms: "4",
-          ordering: "-released", // Sort by release date, newest first
         });
 
         const fallbackResponse = await fetch(
@@ -124,7 +120,6 @@ export async function registerRoutes(app: Express) {
           page_size: "20",
           tags: "indie",
           platforms: "4",
-          ordering: "-released", // Sort by release date, newest first
         });
 
         // Add genres if specified
@@ -135,11 +130,6 @@ export async function registerRoutes(app: Express) {
         // Add rating filter if specified
         if (filters.minRating) {
           indieParams.append("metacritic", `${filters.minRating},100`);
-        }
-        
-        // Add reviews filter if specified
-        if (filters.minReviews) {
-          indieParams.append("ratings_count", `>=${filters.minReviews}`);
         }
 
         console.log(
