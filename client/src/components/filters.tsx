@@ -18,9 +18,9 @@ interface FiltersProps {
 
 export default function Filters({ onFilterChange }: FiltersProps) {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
-  const [rating, setRating] = useState([0]);
+  const [rating, setRating] = useState([60]);
   const [reviews, setReviews] = useState([0]);
-  const [releaseYears, setReleaseYears] = useState([2015]); // Default to 2015 as minimum year
+  const [releaseYear, setReleaseYear] = useState([2015]); // Default to 2015
 
   const { data: genres, isLoading } = useQuery<Genre[]>({
     queryKey: ["/api/genres"],
@@ -35,38 +35,37 @@ export default function Filters({ onFilterChange }: FiltersProps) {
       : [...selectedGenres, genreSlug];
 
     setSelectedGenres(newGenres);
-    updateFilters(newGenres, rating[0], reviews[0], releaseYears[0]);
+    updateFilters(newGenres, rating[0], reviews[0], releaseYear[0]);
   };
 
   const handleRatingChange = (newRating: number[]) => {
     setRating(newRating);
-    updateFilters(selectedGenres, newRating[0], reviews[0], releaseYears[0]);
+    updateFilters(selectedGenres, newRating[0], reviews[0], releaseYear[0]);
   };
 
   const handleReviewsChange = (newReviews: number[]) => {
     setReviews(newReviews);
-    updateFilters(selectedGenres, rating[0], newReviews[0], releaseYears[0]);
+    updateFilters(selectedGenres, rating[0], newReviews[0], releaseYear[0]);
   };
 
-  const handleReleaseYearChange = (newYears: number[]) => {
-    setReleaseYears(newYears);
-    updateFilters(selectedGenres, rating[0], reviews[0], newYears[0]);
+  const handleReleaseYearChange = (newYear: number[]) => {
+    setReleaseYear(newYear);
+    updateFilters(selectedGenres, rating[0], reviews[0], newYear[0]);
   };
 
   const updateFilters = (
     genres: string[],
     minRating: number,
     minReviews: number,
-    minReleaseYear: number
+    selectedYear: number
   ) => {
     // Always include "indie" genre and set independentOnly to true
     const allGenres = genres.includes("indie") ? genres : [...genres, "indie"];
     
-    // Only include non-zero values to avoid filtering with zeros
     const filters: GameFilters = {
       genres: allGenres.length > 0 ? allGenres : ["indie"],
       independentOnly: true,
-      minReleaseYear: minReleaseYear
+      minReleaseYear: selectedYear
     };
 
     if (minRating > 0) filters.minRating = minRating;
@@ -86,7 +85,8 @@ export default function Filters({ onFilterChange }: FiltersProps) {
     // Apply default filters when component mounts
     setSelectedGenres([]);
     setRating([60]);
-    setReleaseYears([2015]);
+    setReviews([0]);
+    setReleaseYear([2015]);
     updateFilters([], 60, 0, 2015);
   }, []);
 
@@ -173,10 +173,10 @@ export default function Filters({ onFilterChange }: FiltersProps) {
 
         <div className="space-y-3">
           <h3 className="font-medium flex items-center gap-2">
-            <Calendar className="h-4 w-4" /> Release Year (and newer)
+            <Calendar className="h-4 w-4" /> Release Year
           </h3>
           <Slider
-            value={releaseYears}
+            value={releaseYear}
             onValueChange={handleReleaseYearChange}
             min={2000}
             max={2024}
@@ -184,7 +184,7 @@ export default function Filters({ onFilterChange }: FiltersProps) {
             className="w-full"
           />
           <div className="text-sm text-muted-foreground">
-            {releaseYears[0]} or newer
+            Showing games from <strong>{releaseYear[0]}</strong>
           </div>
         </div>
       </CardContent>
