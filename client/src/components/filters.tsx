@@ -57,8 +57,9 @@ export default function Filters({ onFilterChange }: FiltersProps) {
   useEffect(() => {
     // Apply default filters when component mounts
     setRating([60]);
+    setReviews([100]); // Set a minimum number of reviews by default
     setReleaseYears([2015]);
-    updateFilters(60, 0, 2015);
+    updateFilters(60, 100, 2015); // Apply minimum rating and reviews by default
   }, []);
 
   return (

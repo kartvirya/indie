@@ -60,11 +60,13 @@ export async function registerRoutes(app: Express) {
       }
 
       if (filters.minRating) {
+        // Use metacritic for better filtering of quality games
         queryParams.append("metacritic", `${filters.minRating},100`);
       }
 
       if (filters.minReviews) {
-        queryParams.append("ratings_count", `${filters.minReviews},5000`);
+        // Make sure to properly format the reviews filter
+        queryParams.append("ratings_count", `>=${filters.minReviews}`);
       }
 
       console.log("Fetching games with params:", queryParams.toString());
@@ -133,6 +135,11 @@ export async function registerRoutes(app: Express) {
         // Add rating filter if specified
         if (filters.minRating) {
           indieParams.append("metacritic", `${filters.minRating},100`);
+        }
+        
+        // Add reviews filter if specified
+        if (filters.minReviews) {
+          indieParams.append("ratings_count", `>=${filters.minReviews}`);
         }
 
         console.log(
